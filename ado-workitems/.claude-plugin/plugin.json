@@ -1,0 +1,9 @@
+{
+  "name": "ado-workitems",
+  "version": "0.1.0",
+  "description": "Azure DevOps work item management - create, update, search, split features into stories, extract BRDs from attachments",
+  "author": {
+    "name": "kiryl"
+  },
+  "keywords": ["azure-devops", "work-items", "agile", "boards"]
+}
