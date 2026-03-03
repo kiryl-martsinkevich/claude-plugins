@@ -1,0 +1,6 @@
+{
+  "name": "azure-devops",
+  "version": "0.1.0",
+  "description": "Azure DevOps pull request and build management using ADO REST API with PAT authentication",
+  "keywords": ["azure-devops", "pull-request", "builds", "ci-cd", "ado"]
+}
