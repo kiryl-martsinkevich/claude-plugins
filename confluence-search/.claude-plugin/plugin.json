@@ -1,0 +1,9 @@
+{
+  "name": "confluence-search",
+  "version": "0.1.0",
+  "description": "Search Confluence pages and attachments (docx/xlsx/pdf) via REST API with configurable space mappings",
+  "author": {
+    "name": "kiryl"
+  },
+  "keywords": ["confluence", "search", "documentation", "attachments"]
+}
