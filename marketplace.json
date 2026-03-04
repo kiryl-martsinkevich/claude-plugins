@@ -1,0 +1,56 @@
+{
+  "$schema": "https://claude.ai/schemas/marketplace/v1/collection.json",
+  "name": "claude-plugins",
+  "version": "0.1.0",
+  "description": "A collection of Claude Code plugins for Azure DevOps and Confluence integration",
+  "author": {
+    "name": "kiryl"
+  },
+  "repository": "https://github.com/kiryl-martsinkevich/claude-plugins",
+  "license": "MIT",
+  "platforms": ["linux", "macos", "windows"],
+  "requirements": {
+    "python": ">=3.8"
+  },
+  "plugins": [
+    {
+      "name": "ado-workitems",
+      "path": "ado-workitems",
+      "version": "0.1.0",
+      "description": "Azure DevOps work item management - create, update, search, split features into stories, extract BRDs from attachments",
+      "keywords": ["azure-devops", "work-items", "agile", "boards"],
+      "skills": ["ado-workitems"],
+      "commands": ["create", "fetch-brd", "search", "split-feature"],
+      "env": {
+        "required": ["ADO_PAT", "ADO_ORG", "ADO_PROJECT"],
+        "optional": []
+      }
+    },
+    {
+      "name": "azure-devops",
+      "path": "azure-devops",
+      "version": "0.1.0",
+      "description": "Azure DevOps pull request and build management using ADO REST API with PAT authentication",
+      "keywords": ["azure-devops", "pull-request", "builds", "ci-cd", "ado"],
+      "skills": ["ado-operations"],
+      "commands": ["check-build", "create-pr", "pr-status", "rerun-pipeline", "review-pr"],
+      "env": {
+        "required": ["ADO_PAT"],
+        "optional": ["ADO_ORG", "ADO_PROJECT", "ADO_REPO"]
+      }
+    },
+    {
+      "name": "confluence-search",
+      "path": "confluence-search",
+      "version": "0.1.0",
+      "description": "Search Confluence pages and attachments (docx/xlsx/pdf) via REST API with configurable space mappings",
+      "keywords": ["confluence", "search", "documentation", "attachments"],
+      "skills": ["confluence-search"],
+      "commands": ["search"],
+      "env": {
+        "required": ["CONFLUENCE_PAT", "CONFLUENCE_URL"],
+        "optional": ["CONFLUENCE_USER"]
+      }
+    }
+  ]
+}
