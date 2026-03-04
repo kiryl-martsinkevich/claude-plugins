@@ -26,15 +26,17 @@ If not set, inform the user they need to export `ADO_PAT` with their Azure DevOp
 
 ```bash
 REMOTE_URL=$(git remote get-url origin 2>/dev/null)
-if echo "$REMOTE_URL" | grep -q "dev.azure.com"; then
-  ADO_ORG=$(echo "$REMOTE_URL" | sed -n 's|.*dev.azure.com/\([^/]*\)/.*|\1|p')
-  ADO_PROJECT=$(echo "$REMOTE_URL" | sed -n 's|.*dev.azure.com/[^/]*/\([^/]*\)/.*|\1|p')
-  ADO_REPO=$(echo "$REMOTE_URL" | sed -n 's|.*_git/\([^/]*\).*|\1|p')
-elif echo "$REMOTE_URL" | grep -q "ssh.dev.azure.com"; then
-  ADO_ORG=$(echo "$REMOTE_URL" | sed -n 's|.*v3/\([^/]*\)/.*|\1|p')
-  ADO_PROJECT=$(echo "$REMOTE_URL" | sed -n 's|.*v3/[^/]*/\([^/]*\)/.*|\1|p')
-  ADO_REPO=$(echo "$REMOTE_URL" | sed -n 's|.*v3/[^/]*/[^/]*/\([^/]*\).*|\1|p')
-fi
+eval $(python3 -c "
+import re, sys
+url = '$REMOTE_URL'
+m = re.search(r'dev\.azure\.com/([^/]+)/([^/]+)/_git/([^/]+)', url)
+if m:
+    print(f'ADO_ORG={m.group(1)} ADO_PROJECT={m.group(2)} ADO_REPO={m.group(3)}')
+    sys.exit()
+m = re.search(r'v3/([^/]+)/([^/]+)/([^/]+)', url)
+if m:
+    print(f'ADO_ORG={m.group(1)} ADO_PROJECT={m.group(2)} ADO_REPO={m.group(3)}')
+")
 ```
 
 2. **Get the current branch name:**
@@ -62,7 +64,7 @@ git push -u origin "$SOURCE_BRANCH"
 
 7. **Create the PR via REST API:**
 ```bash
-AUTH=$(echo -n ":$ADO_PAT" | base64)
+AUTH=$(python3 -c "import base64; print(base64.b64encode((':' + '$ADO_PAT').encode()).decode())")
 BASE="https://dev.azure.com/${ADO_ORG}/${ADO_PROJECT}/_apis"
 
 curl -s -X POST \

@@ -27,7 +27,7 @@ Verify `ADO_PAT` is set. If not, inform the user.
 
 3. **Fetch PR details:**
 ```bash
-AUTH=$(echo -n ":$ADO_PAT" | base64)
+AUTH=$(python3 -c "import base64; print(base64.b64encode((':' + '$ADO_PAT').encode()).decode())")
 BASE="https://dev.azure.com/${ADO_ORG}/${ADO_PROJECT}/_apis"
 
 curl -s \

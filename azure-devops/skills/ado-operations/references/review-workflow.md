@@ -9,7 +9,7 @@ Detailed guide for performing comprehensive pull request reviews in Azure DevOps
 Get the pull request metadata to understand what is being changed:
 
 ```bash
-AUTH=$(echo -n ":$ADO_PAT" | base64)
+AUTH=$(python3 -c "import base64; print(base64.b64encode((':' + '$ADO_PAT').encode()).decode())")
 BASE="https://dev.azure.com/${ADO_ORG}/${ADO_PROJECT}/_apis"
 
 pr=$(curl -s \

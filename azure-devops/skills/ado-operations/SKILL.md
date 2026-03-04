@@ -10,10 +10,10 @@ Manage Azure DevOps pull requests and builds using the ADO REST API with Persona
 
 ## Authentication
 
-All ADO REST API calls require a Personal Access Token. Construct the authorization header:
+All ADO REST API calls require a Personal Access Token. Construct the authorization header using a cross-platform approach:
 
 ```bash
-AUTH=$(echo -n ":$ADO_PAT" | base64)
+AUTH=$(python3 -c "import base64; print(base64.b64encode((':' + '$ADO_PAT').encode()).decode())")
 curl -s -H "Authorization: Basic $AUTH" -H "Content-Type: application/json" "$URL"
 ```
 
@@ -38,24 +38,24 @@ Append `?api-version=7.1` to all requests.
 
 ## Extracting ADO Context from Git Remotes
 
-To auto-detect organization, project, and repository, attempt extraction from the git remote first, then fall back to asking the user:
+To auto-detect organization, project, and repository, attempt extraction from the git remote first, then fall back to asking the user. Use Python for cross-platform regex parsing:
 
 ```bash
 REMOTE_URL=$(git remote get-url origin 2>/dev/null)
 
+eval $(python3 -c "
+import re, sys
+url = '$REMOTE_URL'
 # Parse HTTPS: https://dev.azure.com/{org}/{project}/_git/{repo}
-if echo "$REMOTE_URL" | grep -q "dev.azure.com"; then
-  ADO_ORG=$(echo "$REMOTE_URL" | sed -n 's|.*dev.azure.com/\([^/]*\)/.*|\1|p')
-  ADO_PROJECT=$(echo "$REMOTE_URL" | sed -n 's|.*dev.azure.com/[^/]*/\([^/]*\)/.*|\1|p')
-  ADO_REPO=$(echo "$REMOTE_URL" | sed -n 's|.*_git/\([^/]*\).*|\1|p')
-fi
-
+m = re.search(r'dev\.azure\.com/([^/]+)/([^/]+)/_git/([^/]+)', url)
+if m:
+    print(f'ADO_ORG={m.group(1)} ADO_PROJECT={m.group(2)} ADO_REPO={m.group(3)}')
+    sys.exit()
 # Parse SSH: git@ssh.dev.azure.com:v3/{org}/{project}/{repo}
-if echo "$REMOTE_URL" | grep -q "ssh.dev.azure.com"; then
-  ADO_ORG=$(echo "$REMOTE_URL" | sed -n 's|.*v3/\([^/]*\)/.*|\1|p')
-  ADO_PROJECT=$(echo "$REMOTE_URL" | sed -n 's|.*v3/[^/]*/\([^/]*\)/.*|\1|p')
-  ADO_REPO=$(echo "$REMOTE_URL" | sed -n 's|.*v3/[^/]*/[^/]*/\([^/]*\).*|\1|p')
-fi
+m = re.search(r'v3/([^/]+)/([^/]+)/([^/]+)', url)
+if m:
+    print(f'ADO_ORG={m.group(1)} ADO_PROJECT={m.group(2)} ADO_REPO={m.group(3)}')
+")
 ```
 
 ## Core Operations
@@ -111,26 +111,24 @@ Common transient failure patterns in build logs:
 
 ## Practical curl Patterns
 
-Always use `set -e` and check HTTP status codes:
+Always check HTTP status codes. Use `python3` for base64 encoding (works on Linux, macOS, and Windows):
 
 ```bash
-AUTH=$(echo -n ":$ADO_PAT" | base64)
+AUTH=$(python3 -c "import base64; print(base64.b64encode((':' + '$ADO_PAT').encode()).decode())")
 BASE="https://dev.azure.com/${ADO_ORG}/${ADO_PROJECT}/_apis"
 
 # GET request
-response=$(curl -s -w "\n%{http_code}" \
+curl -s -f \
   -H "Authorization: Basic $AUTH" \
-  "$BASE/git/repositories/$ADO_REPO/pullrequests?searchCriteria.status=active&api-version=7.1")
-http_code=$(echo "$response" | tail -1)
-body=$(echo "$response" | sed '$d')
+  "$BASE/git/repositories/$ADO_REPO/pullrequests?searchCriteria.status=active&api-version=7.1"
 
 # POST request
-response=$(curl -s -w "\n%{http_code}" \
+curl -s -f \
   -X POST \
   -H "Authorization: Basic $AUTH" \
   -H "Content-Type: application/json" \
   -d "$json_body" \
-  "$BASE/git/repositories/$ADO_REPO/pullrequests?api-version=7.1")
+  "$BASE/git/repositories/$ADO_REPO/pullrequests?api-version=7.1"
 ```
 
 ## Additional Resources

@@ -45,12 +45,12 @@ Create a new work item in Azure DevOps with the specified type and fields.
 
 4. **Create the work item:**
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.sh" create "<Type>" '<json-patch>'
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.py" create "<Type>" '<json-patch>'
    ```
 
 5. **If a parent ID was specified**, add the parent link:
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.sh" add-parent <new-id> <parent-id>
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.py" add-parent <new-id> <parent-id>
    ```
 
 6. **Show the result** — display the created work item's ID, URL, and key fields. The URL format is:
@@ -62,5 +62,5 @@ Create a new work item in Azure DevOps with the specified type and fields.
 
 - For User Stories, suggest the "As a [role], I want [goal], so that [benefit]" format for the title
 - HTML fields (Description, Acceptance Criteria, Repro Steps) should use `<p>`, `<ul>`, `<li>` tags
-- Properly escape JSON strings — use jq for building the JSON patch to handle special characters
+- Properly escape JSON strings — use `python3 -c "import json; ..."` or `jq` for building the JSON patch to handle special characters
 - If creation fails, show the error message and suggest fixes
