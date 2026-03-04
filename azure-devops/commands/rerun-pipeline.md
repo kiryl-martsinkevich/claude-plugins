@@ -21,7 +21,7 @@ Verify `ADO_PAT` is set. If not, inform the user.
 2. **Determine what to re-run:**
    - If a **build ID** is provided, fetch that build to get the definition ID and source branch:
      ```bash
-     AUTH=$(echo -n ":$ADO_PAT" | base64)
+     AUTH=$(python3 -c "import base64; print(base64.b64encode((':' + '$ADO_PAT').encode()).decode())")
      BASE="https://dev.azure.com/${ADO_ORG}/${ADO_PROJECT}/_apis"
 
      build=$(curl -s \

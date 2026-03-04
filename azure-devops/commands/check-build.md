@@ -22,7 +22,7 @@ Verify `ADO_PAT` is set. If not, inform the user.
    - If not provided, find the most recent failed build for the current branch:
      ```bash
      SOURCE_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-     AUTH=$(echo -n ":$ADO_PAT" | base64)
+     AUTH=$(python3 -c "import base64; print(base64.b64encode((':' + '$ADO_PAT').encode()).decode())")
      BASE="https://dev.azure.com/${ADO_ORG}/${ADO_PROJECT}/_apis"
 
      curl -s \

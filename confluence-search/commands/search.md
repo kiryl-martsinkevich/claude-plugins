@@ -23,17 +23,17 @@ Search for documentation across Confluence pages and attachments.
 
    For targeted space search:
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.sh" search-space "<query>" "<SPACE_KEY>"
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.py" search-space "<query>" "<SPACE_KEY>"
    ```
 
    For cross-space search:
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.sh" search-compact 'type = page AND (text ~ "<query>" OR title ~ "<query>") ORDER BY lastModified DESC'
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.py" search-compact 'type = page AND (text ~ "<query>" OR title ~ "<query>") ORDER BY lastModified DESC'
    ```
 
 3. **Also search attachments** if the query suggests looking for documents (mentions "BRD", "spec", "document", "standard", "policy", "diagram", or file types like pdf/docx/xlsx):
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.sh" search-attachments "<query>" "<SPACE_KEY>"
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.py" search-attachments "<query>" "<SPACE_KEY>"
    ```
 
 4. **Display results** in a markdown table:
@@ -43,12 +43,12 @@ Search for documentation across Confluence pages and attachments.
 
 5. **If the user wants to read a specific result**, fetch the page content:
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.sh" get-page-text <page-id>
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.py" get-page-text <page-id>
    ```
 
 6. **For attachment results**, offer to download and read:
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.sh" download "<url>" "/tmp/confluence-<id>.<ext>"
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.py" download "<url>" "confluence-<id>.<ext>"
    ```
    Then use the Read tool for PDF files, or pandoc/python for docx/xlsx.
 

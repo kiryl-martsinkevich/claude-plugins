@@ -18,23 +18,23 @@ Analyze a Feature work item and decompose it into well-defined User Stories.
 
 2. **Fetch the feature:**
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.sh" get <feature-id>
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.py" get <feature-id>
    ```
    Extract: Title, Description, Acceptance Criteria, State, Area Path, Iteration Path.
 
 3. **Check for existing children:**
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.sh" children <feature-id>
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.py" children <feature-id>
    ```
    If stories already exist, show them and ask if the user wants to add more or start fresh.
 
 4. **Check for BRD attachments:**
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.sh" attachments <feature-id>
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.py" attachments <feature-id>
    ```
    If .docx or .pdf attachments exist, offer to download and read them for additional context:
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.sh" download <url> /tmp/brd-<feature-id>.<ext>
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.py" download <url> brd-<feature-id>.<ext>
    ```
    Then use the Read tool to extract content from the downloaded file.
 
@@ -67,11 +67,11 @@ Analyze a Feature work item and decompose it into well-defined User Stories.
 8. **Create approved stories** — for each approved story:
    ```bash
    # Create the story
-   RESULT=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.sh" create "User Story" '<json-patch>')
+   RESULT=$(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.py" create "User Story" '<json-patch>')
 
    # Extract new ID and link to parent feature
-   NEW_ID=$(echo "$RESULT" | jq -r '.id')
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.sh" add-parent "$NEW_ID" <feature-id>
+   NEW_ID=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.py" add-parent "$NEW_ID" <feature-id>
    ```
 
    Set the same Area Path and Iteration Path as the parent feature unless specified otherwise.
@@ -83,4 +83,4 @@ Analyze a Feature work item and decompose it into well-defined User Stories.
 - For large features or BRDs, propose stories in logical groups (e.g., by user role, by workflow step)
 - Suggest story point estimates using Fibonacci scale: 1, 2, 3, 5, 8, 13
 - Preserve the feature's Area Path and Iteration Path in child stories
-- Use jq to build JSON patch documents to handle special characters in descriptions
+- Use `python3 -c "import json; ..."` or `jq` to build JSON patch documents to handle special characters in descriptions

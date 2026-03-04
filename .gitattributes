@@ -1,0 +1,14 @@
+# Ensure consistent line endings across platforms
+* text=auto
+
+# Shell scripts must use LF (even on Windows with Git Bash)
+*.sh text eol=lf
+
+# Python scripts use LF
+*.py text eol=lf
+
+# Markdown docs use LF
+*.md text eol=lf
+
+# JSON config uses LF
+*.json text eol=lf

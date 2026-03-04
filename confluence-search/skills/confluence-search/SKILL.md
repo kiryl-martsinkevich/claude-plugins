@@ -5,7 +5,7 @@ description: This skill should be used when the user asks to "search Confluence"
 
 # Confluence Documentation Search
 
-Search and retrieve documentation from Confluence pages and their attachments (docx/xlsx/pdf) via REST API. Supports searching across configured spaces with predefined purpose mappings.
+Search and retrieve documentation from Confluence pages and their attachments (docx/xlsx/pdf) via REST API. Supports searching across configured spaces with predefined purpose mappings. Works on Linux, macOS, and Windows — requires only Python 3 (no external dependencies).
 
 ## Prerequisites
 
@@ -22,12 +22,12 @@ Two environment variables must be set:
 
 Verify with:
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.sh spaces
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.py spaces
 ```
 
 ## Helper Script
 
-All operations use `${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.sh`.
+All operations use `${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.py` (cross-platform Python). Uses only Python standard library modules — no `curl`, `jq`, or `base64` CLI required.
 
 | Command | Usage | Description |
 |---------|-------|-------------|
@@ -64,13 +64,13 @@ To search across ALL spaces, omit the space filter from the CQL query.
 ### Search Pages by Topic
 
 ```bash
-SCRIPT="${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.sh"
+SCRIPT="${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.py"
 
 # Search in a specific space
-bash "$SCRIPT" search-space "microservices architecture" "ENTARCH"
+python3 "$SCRIPT" search-space "microservices architecture" "ENTARCH"
 
 # Search across all spaces
-bash "$SCRIPT" search-compact 'type = page AND (text ~ "microservices" OR title ~ "microservices") ORDER BY lastModified DESC'
+python3 "$SCRIPT" search-compact 'type = page AND (text ~ "microservices" OR title ~ "microservices") ORDER BY lastModified DESC'
 ```
 
 ### Search Attachments
@@ -79,10 +79,10 @@ Confluence indexes content of common file types. Search within attachments:
 
 ```bash
 # Search attachments in a specific space
-bash "$SCRIPT" search-attachments "data model" "ENTARCH"
+python3 "$SCRIPT" search-attachments "data model" "ENTARCH"
 
 # Search all attachments
-bash "$SCRIPT" search-attachments "API specification"
+python3 "$SCRIPT" search-attachments "API specification"
 ```
 
 ### Read Page Content
@@ -91,10 +91,10 @@ After finding a relevant page, fetch its content:
 
 ```bash
 # Get full HTML content
-bash "$SCRIPT" get-page 12345
+python3 "$SCRIPT" get-page 12345
 
 # Get as plain text (stripped HTML)
-bash "$SCRIPT" get-page-text 12345
+python3 "$SCRIPT" get-page-text 12345
 ```
 
 ### Download and Read Attachments
@@ -103,10 +103,10 @@ For deeper analysis of docx/xlsx/pdf attachments:
 
 ```bash
 # List attachments on a page
-bash "$SCRIPT" attachments 12345
+python3 "$SCRIPT" attachments 12345
 
 # Download a specific attachment
-bash "$SCRIPT" download "<download-url>" "/tmp/confluence-doc.pdf"
+python3 "$SCRIPT" download "<download-url>" "confluence-doc.pdf"
 ```
 
 Then use the Read tool for the downloaded file:
@@ -157,4 +157,4 @@ For complete CQL reference, consult `references/api-reference.md`.
 
 ### Helper Script
 
-- **`${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.sh`** — Bash helper wrapping all Confluence REST API operations
+- **`${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.py`** — Cross-platform Python helper wrapping all Confluence REST API operations (works on Linux, macOS, and Windows)

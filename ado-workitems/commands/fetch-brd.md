@@ -17,14 +17,14 @@ Download and extract Business Requirements Document (BRD) content from docx/pdf 
 
 2. **List attachments:**
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.sh" attachments <work-item-id>
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.py" attachments <work-item-id>
    ```
 
 3. **Identify BRD files** — filter for files with `.docx`, `.pdf`, `.doc` extensions. Also look for filenames containing "BRD", "requirement", "spec", or "PRD". If multiple candidates exist, show the list and let the user choose. If only one match, proceed automatically.
 
 4. **Download the attachment:**
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.sh" download "<attachment-url>" "/tmp/ado-brd-<work-item-id>.<ext>"
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ado-api.py" download "<attachment-url>" "ado-brd-<work-item-id>.<ext>"
    ```
 
 5. **Extract content** based on file type:
@@ -32,20 +32,20 @@ Download and extract Business Requirements Document (BRD) content from docx/pdf 
    **For PDF files:**
    Use the Read tool directly — Claude natively supports PDF reading:
    ```
-   Read /tmp/ado-brd-<id>.pdf
+   Read ado-brd-<id>.pdf
    ```
 
    **For DOCX files:**
    First try pandoc (if available):
    ```bash
-   pandoc -f docx -t plain "/tmp/ado-brd-<id>.docx" 2>/dev/null
+   pandoc -f docx -t plain "ado-brd-<id>.docx" 2>/dev/null
    ```
 
    If pandoc is not available, use python-docx:
    ```bash
    python3 -c "
    from docx import Document
-   doc = Document('/tmp/ado-brd-<id>.docx')
+   doc = Document('ado-brd-<id>.docx')
    for p in doc.paragraphs:
        if p.text.strip():
            prefix = ''
@@ -61,7 +61,7 @@ Download and extract Business Requirements Document (BRD) content from docx/pdf 
 
    If neither is available, suggest the user install one:
    ```
-   pip install python-docx   # or: apt install pandoc
+   pip install python-docx   # or install pandoc from https://pandoc.org/installing.html
    ```
 
 6. **Present the BRD content** — show a structured summary with key sections:
