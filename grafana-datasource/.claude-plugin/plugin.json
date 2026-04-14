@@ -1,0 +1,9 @@
+{
+  "name": "grafana-datasource",
+  "version": "0.1.0",
+  "description": "Fetch data from Grafana datasources (Prometheus, Elasticsearch, OpenSearch) via REST API proxy. Outputs CSV.",
+  "author": {
+    "name": "kiryl"
+  },
+  "keywords": ["grafana", "prometheus", "elasticsearch", "opensearch", "metrics", "logs", "csv"]
+}
