@@ -19,7 +19,7 @@ python3 ../../scripts/elasticsearch.py [flags]
 python3 ../../scripts/opensearch.py [flags]
 ```
 
-Paths are relative to this skill file (`skills/grafana-datasource/SKILL.md`).
+Paths are relative to this skill file (`skills/grafana-datasource/SKILL.md`). Resolve the absolute path to `scripts/` from the plugin root before running.
 
 ## Before Running — Gather From the User
 

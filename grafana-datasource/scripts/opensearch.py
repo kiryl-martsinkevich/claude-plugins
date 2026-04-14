@@ -131,7 +131,7 @@ def write_histogram_csv(values, extra_metrics):
 
 
 # ---------------------------------------------------------------------------
-# Elasticsearch-specific
+# OpenSearch-specific
 # ---------------------------------------------------------------------------
 
 def parse_args():
@@ -193,7 +193,15 @@ def query_chunk(base_url, token, uid, index, base_query, time_field, from_dt, to
     url = f'{base_url}/api/datasources/proxy/uid/{uid}/{index}/_search'
     data = grafana_request(url, token, data=q)
     hits = data.get('hits', {}).get('hits', [])
-    return [flatten_hit(h) for h in hits]
+    seen_ids = set()
+    rows = []
+    for h in hits:
+        doc_id = h.get('_id')
+        if doc_id is None or doc_id not in seen_ids:
+            if doc_id is not None:
+                seen_ids.add(doc_id)
+            rows.append(flatten_hit(h))
+    return rows
 
 
 def main():
@@ -211,9 +219,14 @@ def main():
     start = parse_iso8601(args.from_ts)
     end   = parse_iso8601(args.to_ts)
 
+    if start >= end:
+        print('Error: --from must be earlier than --to', file=sys.stderr)
+        sys.exit(1)
+
     all_rows = []
     all_keys = []  # ordered column list, built from first appearance
 
+    chunk_failures = 0
     for chunk_start, chunk_end in chunk_window(start, end):
         try:
             rows = query_chunk(
@@ -227,8 +240,13 @@ def main():
                         all_keys.append(k)
                 all_rows.append(row)
         except Exception as e:
+            chunk_failures += 1
             print(f'Warning: chunk {chunk_start.isoformat()} failed: {e}',
                   file=sys.stderr)
+
+    if not all_rows and chunk_failures > 0:
+        print('Error: all chunks failed, no data returned.', file=sys.stderr)
+        sys.exit(1)
 
     # Ensure time field is first column
     if args.time_field in all_keys:

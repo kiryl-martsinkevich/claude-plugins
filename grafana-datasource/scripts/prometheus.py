@@ -173,7 +173,7 @@ def query_chunk(base_url, token, uid, query, start, end, step):
         metric = series['metric']
         name = metric.get('__name__', '')
         labels = ','.join(
-            f'{k}={v}' for k, v in sorted(metric.items()) if k != '__name__'
+            f'{k}={json.dumps(v)}' for k, v in sorted(metric.items()) if k != '__name__'
         )
         for ts, val in series['values']:
             rows.append((ts, name, labels, val))
@@ -189,9 +189,14 @@ def main():
     start = parse_iso8601(args.from_ts)
     end   = parse_iso8601(args.to_ts)
 
+    if start >= end:
+        print('Error: --from must be earlier than --to', file=sys.stderr)
+        sys.exit(1)
+
     all_rows = []
     seen = set()  # deduplicate datapoints at chunk boundaries
 
+    chunk_failures = 0
     for chunk_start, chunk_end in chunk_window(start, end):
         try:
             rows = query_chunk(
@@ -204,8 +209,13 @@ def main():
                     seen.add(key)
                     all_rows.append(row)
         except Exception as e:
+            chunk_failures += 1
             print(f'Warning: chunk {chunk_start.isoformat()} failed: {e}',
                   file=sys.stderr)
+
+    if not all_rows and chunk_failures > 0:
+        print('Error: all chunks failed, no data returned.', file=sys.stderr)
+        sys.exit(1)
 
     if args.histogram:
         values = []
