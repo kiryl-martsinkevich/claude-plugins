@@ -8,15 +8,15 @@ End-to-end workflow that turns an Azure DevOps work item into a green, review-re
 
 For a given ADO work item ID, the workflow runs seven steps:
 
-1. **Fetch & clarify** — Read the work item (and any attached BRD). If requirements are ambiguous, run a brainstorming session.
-2. **Post clarified requirements** — Write the resolved scope and acceptance criteria back to the work item as a comment.
-3. **Plan** — Produce a phased implementation plan with a coverage target, post it to the work item.
-4. **Implement (TDD)** — Dispatch a language-specific sub-agent that follows strict red → green → refactor and achieves **≥ 60 % line coverage** on changed code.
-5. **Branch, commit, push, PR** — A separate DevOps sub-agent creates `feature/<id>_<short-description>`, commits as `ADO #<id>: <description>`, pushes, and opens a PR linked to the work item.
-6. **Monitor the build** — Poll the PR pipeline; on failure, hand the failed-task log to the developer agent for a fix, hand the fix back to the DevOps agent, repeat until green.
-7. **Wrap up** — Update `README.md` / `CLAUDE.md` only if the change requires it, then post a summary comment on the work item.
+1. **Fetch & assess clarity** — Read the work item (and any attached BRD). If requirements are ambiguous, post a comment on the work item with specific clarifying questions and **stop the run**. The user re-invokes `/shipit` after the work item is updated. The skill never proceeds on guesses.
+2. **Post clarified requirements** — When requirements are clear, write the resolved scope and acceptance criteria back to the work item as a comment.
+3. **Plan** — Produce a phased implementation plan with a coverage target and per-repo breakdown, post it to the work item.
+4. **Implement (TDD, parallel where possible)** — Identify every repo affected. For repos whose changes are functionally independent, dispatch language-specific implementation sub-agents in parallel; dependent repos run in dependency order. Each agent follows red → green → refactor, achieves **≥ 60 % line coverage**, then runs `/simplify` on its changes and re-tests before reporting back.
+5. **Branch, commit, push, PR (per repo, parallel where possible)** — A separate DevOps sub-agent per repo creates `feature/<id>_<short-description>`, commits as `ADO #<id>: <description>`, pushes, and opens a PR linked to the work item. PRs cross-link siblings when multiple repos are involved.
+6. **Monitor builds (per PR, parallel)** — Poll each PR's pipeline. On failure, hand the failed-task log to the developer agent for a fix, run `/simplify` on the fix, hand it back to the DevOps agent to push, repeat until green.
+7. **Wrap up** — Per repo, update `README.md` / `CLAUDE.md` only if the change requires it. Post a single summary comment on the work item covering all PRs.
 
-Hard caps prevent runaway loops: three implementation attempts, five build-fix iterations. The skill never bypasses tests, signed-commit policy, or branch protection, and never auto-merges.
+Hard caps prevent runaway loops: three implementation attempts per repo, five build-fix iterations per PR. The skill never bypasses tests, signed-commit policy, or branch protection, and never auto-merges.
 
 ## Prerequisites
 
@@ -28,7 +28,8 @@ Hard caps prevent runaway loops: three implementation attempts, five build-fix i
 | Git repo with `origin` on Azure DevOps | The DevOps sub-agent auto-detects org/project/repo from the remote |
 | `ado-workitems` plugin | Provides the work-item fetch / BRD-extraction skill |
 | `azure-devops` plugin | Provides the PR / pipeline operations skill |
-| `superpowers` plugin | Provides `brainstorming`, `writing-plans`, `test-driven-development`, `verification-before-completion` |
+| `superpowers` plugin | Provides `writing-plans`, `test-driven-development`, `dispatching-parallel-agents`, `verification-before-completion` |
+| `simplify` skill | Invoked after every successful implementation and fix to clean up the changed code |
 
 ```bash
 export ADO_PAT="your-personal-access-token"
