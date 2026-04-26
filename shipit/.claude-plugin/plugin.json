@@ -1,0 +1,9 @@
+{
+  "name": "shipit",
+  "version": "0.1.0",
+  "description": "End-to-end workflow that turns an ADO work item into a shipped PR — orchestrates brainstorming, planning, TDD implementation, branching, build monitoring, and ADO comment updates.",
+  "author": {
+    "name": "kiryl"
+  },
+  "keywords": ["azure-devops", "workflow", "ship", "tdd", "ado", "orchestration"]
+}
