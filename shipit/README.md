@@ -8,13 +8,15 @@ End-to-end workflow that turns an Azure DevOps work item into a green, review-re
 
 For a given ADO work item ID, the workflow runs seven steps:
 
-1. **Fetch & assess clarity** — Read the work item (and any attached BRD). If requirements are ambiguous, post a comment on the work item with specific clarifying questions and **stop the run**. The user re-invokes `/shipit` after the work item is updated. The skill never proceeds on guesses.
+1. **Fetch & assess clarity** — Read the work item (and any attached BRD). If requirements are ambiguous, transition the work item to `In Analysis`, post a comment with specific clarifying questions, and **stop the run**. The user re-invokes `/shipit` after the work item is updated. The skill never proceeds on guesses.
 2. **Post clarified requirements** — When requirements are clear, write the resolved scope and acceptance criteria back to the work item as a comment.
 3. **Plan** — Produce a phased implementation plan with a coverage target and per-repo breakdown, post it to the work item.
-4. **Implement (TDD, parallel where possible)** — Identify every repo affected. For repos whose changes are functionally independent, dispatch language-specific implementation sub-agents in parallel; dependent repos run in dependency order. Each agent follows red → green → refactor, achieves **≥ 60 % line coverage**, then runs `/simplify` on its changes and re-tests before reporting back.
+4. **Implement (TDD, parallel where possible)** — Transition the work item to `In Development`. Identify every repo affected. For repos whose changes are functionally independent, dispatch language-specific implementation sub-agents in parallel; dependent repos run in dependency order. Each agent follows red → green → refactor, achieves **≥ 60 % line coverage**, then runs `/simplify` on its changes and re-tests before reporting back.
 5. **Branch, commit, push, PR (per repo, parallel where possible)** — A separate DevOps sub-agent per repo creates `feature/<id>_<short-description>`, commits as `ADO #<id>: <description>`, pushes, and opens a PR linked to the work item. PRs cross-link siblings when multiple repos are involved.
-6. **Monitor builds (per PR, parallel)** — Poll each PR's pipeline. On failure, hand the failed-task log to the developer agent for a fix, run `/simplify` on the fix, hand it back to the DevOps agent to push, repeat until green.
+6. **Monitor builds (per PR, parallel)** — Poll each PR's pipeline. On failure, hand the failed-task log to the developer agent for a fix, run `/simplify` on the fix, hand it back to the DevOps agent to push, repeat until green. When all PRs are green, transition the work item to `In Review`.
 7. **Wrap up** — Per repo, update `README.md` / `CLAUDE.md` only if the change requires it. Post a single summary comment on the work item covering all PRs.
+
+The work item state moves `→ In Analysis` (only if requirements are unclear), or `→ In Development → In Review` for a normal run. If the project's process template uses different state names, the skill asks once and reuses the equivalents.
 
 Hard caps prevent runaway loops: three implementation attempts per repo, five build-fix iterations per PR. The skill never bypasses tests, signed-commit policy, or branch protection, and never auto-merges.
 

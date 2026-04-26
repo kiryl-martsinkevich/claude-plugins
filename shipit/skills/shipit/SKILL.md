@@ -24,6 +24,12 @@ Verify before starting. Stop with a clear error if any are missing:
 - Treat the workflow steps below as a checklist. Create a TodoWrite list with one todo per numbered step (Step 1 … Step 7) at the start, mark each `in_progress` when entering it and `completed` when it ends. Never advance with prior steps incomplete.
 - Use sub-skills via the `Skill` tool: `superpowers:writing-plans`, `superpowers:test-driven-development`, `superpowers:dispatching-parallel-agents`, `superpowers:verification-before-completion`, `superpowers:finishing-a-development-branch`, `simplify`, `ado-workitems:ado-workitems`, `azure-devops:ado-operations`.
 - **Always simplify after code changes go green.** Every implementation or fix sub-agent must invoke the `simplify` skill (the same code path as the `/simplify` slash command) on the files it just touched, then re-run the tests, before reporting back. This applies in Step 4 and Step 6. Never skip simplify with the rationale "it works already" — that is exactly when it runs.
+- **Keep the work item state in sync with reality.** Transition the ADO work item to:
+  - `In Analysis` immediately before posting the clarification-request comment in Step 1.4 (unclear-requirements stop path).
+  - `In Development` the moment implementation begins (Step 4).
+  - `In Review` the moment all PRs are green (end of Step 6).
+
+  Use `python3 ${ado-workitems plugin path}/scripts/ado-api.py update <WORKITEM_ID> '[{"op":"replace","path":"/fields/System.State","value":"<state>"}]'`. If the project's process template does not have those exact state names, ask the user once for the equivalent target states and reuse them. Failure to transition is a hard error — surface it, do not silently continue.
 - Use specialist sub-agents via the `Agent` tool for implementation and DevOps work. The "developer" and "devops" actors below MUST run as separate sub-agents — do not collapse them.
 - **Multi-repo parallelism.** When the work touches multiple repositories AND each repo's change has no functional dependency on another (no shared types, no API contract that must land first, no migration ordering), dispatch one sub-agent per repo in a single `Agent` tool-call batch (multiple tool-use blocks in one message). Follow `superpowers:dispatching-parallel-agents`. If repos depend on each other, run them sequentially in dependency order — never break a contract by shipping consumers before producers.
 - Persist state (workitem ID, per-repo branch name, per-repo PR ID, per-repo build IDs, short description) in TodoWrite notes so loops below can resume after errors. Track each repo as its own sub-todo when multi-repo.
@@ -39,6 +45,7 @@ Verify before starting. Stop with a clear error if any are missing:
    - There is no contradictory or ambiguous wording, and no missing information that would force a guess about behaviour, data shapes, or edge cases.
 4. **If unclear → STOP after posting a clarification request.** Do NOT brainstorm with the user, do NOT assume, do NOT proceed to Step 2. Instead:
    - Build a numbered list of specific clarifying questions (one question per ambiguity — be precise, not vague).
+   - Transition the work item to `In Analysis` (use the `System.State` update pattern from the Operating Principles). Apply the state-name fallback if the project does not use that exact name.
    - Post the questions as an ADO work-item comment using the comment-posting pattern in Step 2 below, with the heading `<h3>Clarification needed (shipit)</h3>` and a closing line stating that the shipit run has been paused until the questions are answered. See `references/comment-template.md` § "Clarification request".
    - Mark all remaining TodoWrite items as cancelled, report the posted comment URL to the user, and end the task. The user (or work-item owner) re-invokes `/shipit` after updating the work item.
 5. **If clear → continue.** Produce a one-paragraph "confirmed requirements" summary as `CLARIFIED_REQS` (markdown, kept in conversation notes).
@@ -71,6 +78,16 @@ Convert markdown to minimal HTML (`<p>`, `<ul>`, `<code>`) before sending — AD
 3. Post the plan as a second ADO work-item comment using the same `curl … /comments` pattern from Step 2. Prepend an `<h3>Implementation plan (shipit)</h3>` heading. Include a "Repos in scope" section listing each repo path and whether it is independent.
 
 ## Step 4 — Implementation Sub-Agent(s) (TDD, ≥ 60 % Coverage)
+
+**Before dispatching any implementation agent**, transition the work item to `In Development` so the board reflects that work has started:
+
+```bash
+python3 "$ADO_API" update "$WORKITEM_ID" '[
+  {"op":"replace","path":"/fields/System.State","value":"In Development"}
+]'
+```
+
+(`$ADO_API` is the path to `ado-api.py` exposed by the `ado-workitems` plugin.) If the call fails because the state value is not allowed by the project's process template, ask the user for the equivalent state name once, then retry — do not skip the transition.
 
 For each repo in `REPOS`, detect the dominant language by reading repo signals (e.g. `*.csproj`, `pom.xml`, `build.sbt`, `package.json`, `pyproject.toml`, file extensions). Map it to a specialist agent:
 
@@ -143,7 +160,15 @@ Implementation notes:
 - Hard cap: 5 fix iterations PER PR. After that, stop and ask the user (one PR exceeding the cap does not auto-cancel sibling PRs, but it does block Step 7 for the whole work item). Never disable tests, never push `--no-verify`, never bypass branch policies.
 - If a failure looks transient (per the ado-operations skill's transient-failure list), the devops agent re-queues the build instead of invoking the developer agent.
 
-When EVERY PR is green, proceed to Step 7.
+When EVERY PR is green, transition the work item to `In Review` before continuing:
+
+```bash
+python3 "$ADO_API" update "$WORKITEM_ID" '[
+  {"op":"replace","path":"/fields/System.State","value":"In Review"}
+]'
+```
+
+Apply the same fallback as Step 4 if the state name is not accepted (ask the user once for the equivalent). Then proceed to Step 7.
 
 ## Step 7 — Wrap-Up
 
