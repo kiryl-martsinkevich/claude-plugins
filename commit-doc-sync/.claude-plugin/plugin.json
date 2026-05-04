@@ -1,0 +1,9 @@
+{
+  "name": "commit-doc-sync",
+  "version": "0.1.0",
+  "description": "After a successful git commit, launches a sub-agent to review the diff and amend CLAUDE.md / README.md if needed. Gated by a file-type heuristic — skips pure doc/test/config/generated-file commits. Set COMMIT_DOC_AGENT_CMD to override the agent command (default: claude -p). Set COMMIT_DOC_SYNC_DISABLE=1 to disable.",
+  "author": {
+    "name": "kiryl"
+  },
+  "keywords": ["git", "commit", "docs", "sync", "claude-md", "readme", "automation"]
+}
