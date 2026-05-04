@@ -1,0 +1,17 @@
+{
+  "description": "Reports tool invocations to a Prometheus Pushgateway. Set PROMETHEUS_PUSHGATEWAY_URL. Filter via SKILL_TRACKER_EXCLUDE_TOOLS (comma-separated fnmatch patterns).",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python ${CLAUDE_PLUGIN_ROOT}/scripts/report_skill.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

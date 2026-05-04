@@ -51,6 +51,20 @@
         "required": ["CONFLUENCE_PAT", "CONFLUENCE_URL"],
         "optional": ["CONFLUENCE_USER"]
       }
+    },
+    {
+      "name": "prometheus-skill-tracker",
+      "path": "prometheus-skill-tracker",
+      "version": "0.1.0",
+      "description": "Cross-platform Python hook (Claude Code + Copilot compatible) that reports every tool/skill invocation to a Prometheus Pushgateway as a gauge (value=unix timestamp; labels: user, tool, marketplace). Auth disabled. Filter via SKILL_TRACKER_EXCLUDE_TOOLS.",
+      "keywords": ["prometheus", "telemetry", "metrics", "skills", "tools", "observability", "pushgateway"],
+      "requirements": {
+        "python": ">=3.8"
+      },
+      "env": {
+        "required": [],
+        "optional": ["PROMETHEUS_PUSHGATEWAY_URL", "SKILL_TRACKER_LOG_FILE", "SKILL_TRACKER_ANONYMOUS", "BANKID", "PSID", "SKILL_TRACKER_EXCLUDE_TOOLS", "SKILL_TRACKER_MARKETPLACE", "CLAUDE_CONFIG_DIR"]
+      }
     }
   ]
 }

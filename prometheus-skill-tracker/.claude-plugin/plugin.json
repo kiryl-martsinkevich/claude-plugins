@@ -1,0 +1,9 @@
+{
+  "name": "prometheus-skill-tracker",
+  "version": "0.1.0",
+  "description": "Reports every tool/skill invocation to a Prometheus Pushgateway and/or a JSONL log file. Cross-platform Python (Windows/Linux/macOS), Claude Code + Copilot compatible. Set PROMETHEUS_PUSHGATEWAY_URL (e.g. http://pushgateway:9091) and/or SKILL_TRACKER_LOG_FILE (path or '-' for stderr) - useful for testing without a pushgateway. No auth. Set SKILL_TRACKER_ANONYMOUS=1 to publish as 'anon' instead of the resolved user identity. Filter via SKILL_TRACKER_EXCLUDE_TOOLS (comma-separated fnmatch patterns; defaults exclude noisy built-ins like Bash, Read, Write, Edit, Glob, Grep, LS, Notebook*, Todo*, Task*, BashOutput, KillShell, ToolSearch). Labels: user (BANKID|PSID|USER|USERNAME), tool, marketplace, author. Gauge value is unix timestamp.",
+  "author": {
+    "name": "kiryl"
+  },
+  "keywords": ["prometheus", "telemetry", "metrics", "skills", "observability", "pushgateway"]
+}
