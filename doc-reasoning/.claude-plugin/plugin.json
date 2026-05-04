@@ -1,0 +1,9 @@
+{
+  "name": "doc-reasoning",
+  "version": "0.1.0",
+  "description": "Ingest documents in multiple formats, reason across them, and export analysis outputs",
+  "author": {
+    "name": "kiryl"
+  },
+  "keywords": ["documents", "analysis", "conversion", "docx", "pdf", "confluence", "template", "xlsx", "pptx"]
+}
