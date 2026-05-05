@@ -11,8 +11,11 @@ Load and reason across documents in the working directory. Compare, analyze, fin
 
 First, scan the working directory to see what's available:
 
-```bash
-find .claude/doc-reasoning -name "*.md" -not -path "*/output/*" 2>/dev/null | sort
+```python
+from pathlib import Path
+for p in sorted(Path(".claude/doc-reasoning").rglob("*.md")):
+    if "output" not in p.parts:
+        print(p)
 ```
 
 If nothing is found, tell the user:
@@ -29,8 +32,10 @@ If sessions exist, present them as a table:
 ```
 
 Also list any existing outputs:
-```bash
-find .claude/doc-reasoning -path "*/output/*.md" 2>/dev/null | sort
+```python
+from pathlib import Path
+for p in sorted(Path(".claude/doc-reasoning").glob("*/output/*.md")):
+    print(p)
 ```
 
 The user can say:
@@ -43,8 +48,10 @@ The user can say:
 
 Load the requested documents using the Read tool. For each document, read the `.meta.json` file first to show context:
 
-```bash
-cat .claude/doc-reasoning/session-N/docname.meta.json
+```python
+import json
+from pathlib import Path
+print(json.dumps(json.loads(Path(".claude/doc-reasoning/session-N/docname.meta.json").read_text()), indent=2))
 ```
 
 Then read the markdown content. If a document is very large (over ~2000 lines), load it in sections and summarize what's available. Offer to load specific sections on demand.
@@ -53,8 +60,11 @@ Then read the markdown content. If a document is very large (over ~2000 lines), 
 - Track total lines loaded across documents
 - If approaching context limits, warn the user: "These documents together are ~N lines. I'll load the key sections first. Tell me which parts to focus on."
 - For large documents, start with headings only to give an overview:
-  ```bash
-  grep '^##' .claude/doc-reasoning/session-N/docname.md
+  ```python
+  from pathlib import Path
+  for line in Path(".claude/doc-reasoning/session-N/docname.md").read_text().splitlines():
+      if line.startswith("##"):
+          print(line)
   ```
 
 ## Phase 3: Reasoning
@@ -78,8 +88,9 @@ Once documents are loaded, reason according to the user's request. Common patter
 
 When analysis is complete, write findings to the session's output directory:
 
-```bash
-mkdir -p .claude/doc-reasoning/session-N/output
+```python
+from pathlib import Path
+Path(".claude/doc-reasoning/session-N/output").mkdir(parents=True, exist_ok=True)
 ```
 
 Write the analysis as a markdown file, then tell the user:

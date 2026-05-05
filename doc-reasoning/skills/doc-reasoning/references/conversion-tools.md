@@ -58,9 +58,14 @@ Tools required for document format conversion and their installation.
 
 ## Checking Tool Availability
 
-```bash
-command -v pandoc && echo "pandoc: OK" || echo "pandoc: MISSING"
-command -v pdftotext && echo "pdftotext: OK" || echo "pdftotext: MISSING"
-python3 -c "import openpyxl" 2>/dev/null && echo "openpyxl: OK" || echo "openpyxl: MISSING"
-python3 -c "import pptx" 2>/dev/null && echo "python-pptx: OK" || echo "python-pptx: MISSING"
+```python
+import importlib.util, shutil
+checks = {
+    "pandoc": lambda: shutil.which("pandoc") is not None,
+    "pdftotext": lambda: shutil.which("pdftotext") is not None,
+    "openpyxl": lambda: importlib.util.find_spec("openpyxl") is not None,
+    "python-pptx": lambda: importlib.util.find_spec("pptx") is not None,
+}
+for name, check in checks.items():
+    print(f"{name}: {'OK' if check() else 'MISSING'}")
 ```

@@ -7,31 +7,32 @@ description: Detect and resume previous document reasoning sessions
 # Document Reasoning Session — Resume Check
 
 !script <<'INNERSCRIPT'
-if [ -d ".claude/doc-reasoning" ]; then
-  SESSION_COUNT=$(find .claude/doc-reasoning -maxdepth 1 -type d -name "session-*" 2>/dev/null | wc -l)
-  OUTPUT_COUNT=$(find .claude/doc-reasoning -path "*/output/*.md" 2>/dev/null | wc -l)
+#!/usr/bin/env python3
+from pathlib import Path
 
-  if [ "$SESSION_COUNT" -gt 0 ]; then
-    echo "---"
-    echo "Previous document reasoning sessions found:"
-    echo ""
-    for session_dir in .claude/doc-reasoning/session-*; do
-      if [ -d "$session_dir" ]; then
-        session_name=$(basename "$session_dir")
-        docs=$(find "$session_dir" -maxdepth 1 -name "*.md" -not -name ".*" 2>/dev/null | wc -l)
-        outputs=$(find "$session_dir/output" -name "*.md" 2>/dev/null | wc -l)
-        echo "  **$session_name:** $docs document(s), $outputs output(s)"
-      fi
-    done
-    echo ""
-    echo "Use the **doc-reasoning** skill to resume working with these documents."
-    echo "Or start fresh with \`/doc:ingest <path>\`"
-  fi
+ws_dir = Path(".claude/doc-reasoning")
+if not ws_dir.exists():
+    raise SystemExit(0)
 
-  if [ "$OUTPUT_COUNT" -gt 0 ]; then
-    echo ""
-    echo "Pending outputs (not yet exported):"
-    find .claude/doc-reasoning -path "*/output/*.md" -exec echo "  - {}" \; 2>/dev/null
-  fi
-fi
+sessions = sorted(ws_dir.glob("session-*"))
+output_files = sorted(ws_dir.glob("*/output/*.md"))
+
+if sessions:
+    print("---")
+    print("Previous document reasoning sessions found:")
+    print()
+    for session_dir in sessions:
+        docs = len(list(session_dir.glob("*.md")))
+        outputs_dir = session_dir / "output"
+        outputs = len(list(outputs_dir.glob("*.md"))) if outputs_dir.exists() else 0
+        print(f"  **{session_dir.name}:** {docs} document(s), {outputs} output(s)")
+    print()
+    print("Use the **doc-reasoning** skill to resume working with these documents.")
+    print("Or start fresh with `/doc:ingest <path>`")
+
+if output_files:
+    print()
+    print("Pending outputs (not yet exported):")
+    for f in output_files:
+        print(f"  - {f}")
 INNERSCRIPT
