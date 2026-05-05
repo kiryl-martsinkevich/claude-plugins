@@ -100,6 +100,31 @@ Write the analysis as a markdown file, then tell the user:
 For Confluence updates specifically:
 > To push changes to Confluence, I'll need the target page ID. Use `/doc:export output/analysis.md --format confluence` and I'll guide you through publishing.
 
+## Confluence Integration
+
+When the user wants to work with Confluence content, combine the **confluence-search** skill with this skill:
+
+1. **Discover** — Use the `confluence-search` skill to search for the relevant page or attachment:
+   ```python
+   # Via confluence-search skill: search-space, search-compact, get-page-text, attachments
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/confluence-api.py" search-space "topic" "SPACE"
+   ```
+   Note the page ID from the results.
+
+2. **Ingest** — Bring the page (and its supported attachments) into the workspace:
+   > `/doc:ingest https://confluence.company.com/pages/viewpage.action?pageId=<id>`
+
+   `/doc:ingest` automatically:
+   - Fetches the page body via `confluence-api.py get-page`
+   - Converts Confluence HTML storage format to markdown via `html-to-md.py`
+   - Downloads and converts any `.docx`, `.xlsx`, `.pptx`, or `.pdf` attachments on the page
+
+3. **Reason** — Use this skill as normal to analyze, compare, or synthesize the ingested content.
+
+4. **Export back** — Use `/doc:export` with `--format confluence` to get HTML ready for a Confluence page update.
+
+> **Requires:** `CONFLUENCE_PAT` and `CONFLUENCE_URL` env vars set, and the `confluence-search` plugin installed alongside or in the plugin cache.
+
 ## Reference Files
 
 - **`references/conversion-tools.md`** — Required tools, installation per OS, format limitations

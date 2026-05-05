@@ -23,6 +23,24 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 
+
+def find_confluence_api(plugin_dir: Path) -> Path | None:
+    """Locate confluence-api.py from the confluence-search plugin.
+
+    Checks, in order:
+    1. A sibling 'confluence-search' directory (source/dev layout).
+    2. The installed plugin cache (~/.claude/plugins/cache/*/confluence-search).
+    """
+    sibling = plugin_dir.parent / "confluence-search" / "scripts" / "confluence-api.py"
+    if sibling.exists():
+        return sibling
+    cache = Path.home() / ".claude" / "plugins" / "cache"
+    if cache.exists():
+        for p in cache.glob("*/confluence-search/scripts/confluence-api.py"):
+            return p
+    return None
+
+
 SOURCE = sys.argv[1] if len(sys.argv) > 1 else ""
 if not SOURCE:
     print("ERROR: source required", file=sys.stderr)
@@ -47,80 +65,105 @@ if re.match(r"^https?://", SOURCE, re.IGNORECASE):
     if is_confluence:
         print("Detected Confluence URL")
 
-        confluence_plugin = None
-        plugin_cache = Path.home() / ".claude/plugins/cache"
-        if plugin_cache.exists():
-            for d in plugin_cache.glob("*/confluence-search"):
-                if d.is_dir():
-                    confluence_plugin = d
-                    break
-
-        if not confluence_plugin:
-            print("WARNING: confluence-search plugin not found. Install it first for Confluence support.")
-            print("Proceeding with generic web fetch...")
+        confluence_api = find_confluence_api(PLUGIN_DIR)
+        if not confluence_api:
+            print("ERROR: confluence-search plugin not found.", file=sys.stderr)
+            print("Install it alongside doc-reasoning or in the plugin cache.", file=sys.stderr)
+            print("  Tip: use the confluence-search skill to browse/find pages first.", file=sys.stderr)
+            sys.exit(1)
 
         confluence_pat = os.environ.get("CONFLUENCE_PAT", "")
         confluence_url_env = os.environ.get("CONFLUENCE_URL", "")
-
         if not confluence_pat or not confluence_url_env:
-            print("WARNING: CONFLUENCE_PAT or CONFLUENCE_URL not set.")
-            print("Set them: export CONFLUENCE_PAT=<token> CONFLUENCE_URL=<base-url>")
-            print("Proceeding with generic web fetch...")
+            print("ERROR: CONFLUENCE_PAT and CONFLUENCE_URL must be set.", file=sys.stderr)
+            print("Set them: export CONFLUENCE_PAT=<token> CONFLUENCE_URL=<base-url>", file=sys.stderr)
+            sys.exit(1)
 
         page_id_match = re.search(r"(?:pageId=|/pages/)(\d+)", SOURCE)
         page_id = page_id_match.group(1) if page_id_match else ""
-
-        if confluence_plugin and confluence_pat and confluence_url_env and page_id:
-            print("Fetching Confluence page...")
-            confluence_script = confluence_plugin / "scripts/confluence-api.py"
-
-            raw_json_path = SESSION_DIR / "confluence-raw.json"
-            result = subprocess.run(
-                [sys.executable, str(confluence_script),
-                 "get-page", page_id, "body.storage,space,version"],
-                capture_output=True, text=True,
-            )
-            if result.returncode != 0:
-                print(f"ERROR: Failed to fetch Confluence page {page_id}", file=sys.stderr)
-                sys.exit(1)
-            raw_json_path.write_text(result.stdout, encoding="utf-8")
-
-            data = json.loads(raw_json_path.read_text(encoding="utf-8"))
-            title = data.get("title", "untitled")
-            html_content = data.get("body", {}).get("storage", {}).get("value", "")
-            safe_title = title.replace("/", "-")
-
-            confluence_html = SESSION_DIR / "confluence-content.html"
-            confluence_html.write_text(html_content, encoding="utf-8")
-
-            print(f"Page: {title} (ID: {page_id})")
-            print()
-
-            subprocess.run(
-                [sys.executable, str(PLUGIN_DIR / "scripts/html-to-md.py"),
-                 str(confluence_html), str(SESSION_DIR / f"{safe_title}.md")],
-                check=True,
-            )
-
-            meta = {
-                "source": SOURCE,
-                "format": "confluence",
-                "ingested_at": datetime.now().isoformat(),
-                "page_id": page_id,
-                "title": title,
-                "markdown": f"{safe_title}.md",
-            }
-            (SESSION_DIR / f"{safe_title}.meta.json").write_text(
-                json.dumps(meta, indent=2), encoding="utf-8"
-            )
-
-            raw_json_path.unlink(missing_ok=True)
-            confluence_html.unlink(missing_ok=True)
-            print(f"Ingested: {SESSION_DIR / (safe_title + '.md')}")
-
-        else:
-            print("WARNING: Could not extract page ID from URL. Use a URL with pageId= or /pages/<id>")
+        if not page_id:
+            print("WARNING: Could not extract page ID from URL.", file=sys.stderr)
+            print("Use a URL with pageId= or /pages/<id>, or use the confluence-search skill to find the page ID.", file=sys.stderr)
             sys.exit(1)
+
+        print("Fetching Confluence page...")
+        result = subprocess.run(
+            [sys.executable, str(confluence_api),
+             "get-page", page_id, "body.storage,space,version,children.attachment"],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            print(f"ERROR: Failed to fetch Confluence page {page_id}", file=sys.stderr)
+            print(result.stderr, file=sys.stderr)
+            sys.exit(1)
+
+        data = json.loads(result.stdout)
+        title = data.get("title", "untitled")
+        html_content = data.get("body", {}).get("storage", {}).get("value", "")
+        safe_title = title.replace("/", "-")
+
+        confluence_html = SESSION_DIR / "confluence-content.html"
+        confluence_html.write_text(html_content, encoding="utf-8")
+
+        print(f"Page: {title} (ID: {page_id})")
+
+        subprocess.run(
+            [sys.executable, str(PLUGIN_DIR / "scripts/html-to-md.py"),
+             str(confluence_html), str(SESSION_DIR / f"{safe_title}.md")],
+            check=True,
+        )
+        confluence_html.unlink(missing_ok=True)
+
+        meta = {
+            "source": SOURCE,
+            "format": "confluence",
+            "ingested_at": datetime.now().isoformat(),
+            "page_id": page_id,
+            "title": title,
+            "markdown": f"{safe_title}.md",
+        }
+        (SESSION_DIR / f"{safe_title}.meta.json").write_text(
+            json.dumps(meta, indent=2), encoding="utf-8"
+        )
+        print(f"Ingested: {SESSION_DIR / (safe_title + '.md')}")
+
+        # Download and ingest supported attachments from the page
+        att_result = subprocess.run(
+            [sys.executable, str(confluence_api), "attachments", page_id],
+            capture_output=True, text=True,
+        )
+        if att_result.returncode == 0:
+            try:
+                attachments = json.loads(att_result.stdout)
+                supported = {"docx", "xlsx", "pptx", "pdf"}
+                ingested_atts = []
+                for att in attachments:
+                    att_title = att.get("title", "")
+                    att_ext = Path(att_title).suffix.lstrip(".").lower()
+                    if att_ext not in supported:
+                        continue
+                    download_url = att.get("downloadUrl", "")
+                    if not download_url:
+                        continue
+                    att_dest = SESSION_DIR / att_title
+                    dl = subprocess.run(
+                        [sys.executable, str(confluence_api),
+                         "download", download_url, str(att_dest)],
+                        capture_output=True, text=True,
+                    )
+                    if dl.returncode == 0 and att_dest.exists():
+                        conv = subprocess.run(
+                            [sys.executable, str(PLUGIN_DIR / "scripts/doc-to-md.py"),
+                             str(att_dest), str(SESSION_DIR)],
+                            capture_output=True, text=True,
+                        )
+                        att_dest.unlink(missing_ok=True)
+                        if conv.returncode == 0:
+                            ingested_atts.append(att_title)
+                if ingested_atts:
+                    print(f"Attachments ingested: {', '.join(ingested_atts)}")
+            except (json.JSONDecodeError, KeyError):
+                pass
 
     else:
         print("Fetching web page...")

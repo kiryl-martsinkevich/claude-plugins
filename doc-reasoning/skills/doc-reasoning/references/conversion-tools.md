@@ -44,12 +44,15 @@ Tools required for document format conversion and their installation.
 - **Recommendation:** Use pdftotext with `-layout` flag for best structure retention
 
 ### Confluence
+- **Requires:** `confluence-search` plugin — provides `scripts/confluence-api.py` (pure Python, no external deps)
+- **API script:** `confluence-api.py` handles `get-page`, `get-page-text`, `attachments`, `download`, `search-space`, etc.
 - **Bidirectional conversion:** HTML storage format → markdown (ingest) and markdown → HTML (export)
 - **What converts well:** Headings, paragraphs, lists, tables, bold/italic, links
 - **What is lost:** Confluence macros (Jira issues, page trees, task lists), embedded attachments, page properties, comments
 - **Macros:** Recognized and noted in output but content not extracted
 - **Page hierarchy:** Only the page content is captured, not its position in the page tree
 - **Images:** Converted to markdown image references. Actual image content must be downloaded separately
+- **Attachments:** `.docx`, `.xlsx`, `.pptx`, `.pdf` attachments are automatically downloaded and converted on ingest
 
 ### HTML / Web Pages
 - **What converts well:** Semantic HTML (headings, paragraphs, lists, tables, links)
