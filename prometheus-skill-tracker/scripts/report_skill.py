@@ -6,14 +6,17 @@ harness (Claude Code, Copilot, ...) that can spawn a process on a tool-use
 event. Standard library only - no third-party dependencies.
 
 Inputs (checked in order):
-    1. JSON on stdin in Claude Code / Copilot hook shape:
+    1. JSON on stdin in Claude Code / VS Code Copilot Chat / Copilot CLI
+       (VS-Code-compat) hook shape:
          {"tool_name": "<name>", "tool_input": {...}}
        For tool_name == "Skill" the actual skill name is taken from
        tool_input.skill (falls back to tool_input.name); for any other
        tool_name the value of tool_name itself is used.
-    2. JSON on stdin in generic shape: {"tool": "<name>"} or {"skill": "<name>"}
-    3. Env var TOOL_NAME (or legacy SKILL_NAME)
-    4. argv[1]
+    2. JSON on stdin in Copilot CLI native preToolUse shape:
+         {"toolName": "<name>", "toolArgs": {...}}
+    3. JSON on stdin in generic shape: {"tool": "<name>"} or {"skill": "<name>"}
+    4. Env var TOOL_NAME (or legacy SKILL_NAME)
+    5. argv[1]
 
 Configuration:
     PROMETHEUS_PUSHGATEWAY_URL  Base URL of the pushgateway (e.g.
@@ -50,13 +53,18 @@ If SKILL_TRACKER_ANONYMOUS is truthy ("1"/"true"/"yes"/"on", case-insensitive)
 the resolved user is replaced with the literal "anon" everywhere it lands
 (both the prometheus label and the pushgateway URL path).
 
-Marketplace and author lookup is best-effort:
-    - For "<plugin>:<skill>" namespaced names, parses
+Marketplace and author lookup is best-effort, in this order:
+    - For "<plugin>:<skill>" namespaced names, first parses
       ~/.claude/plugins/installed_plugins.json (override location with
       CLAUDE_CONFIG_DIR) whose plugin keys are "<plugin>@<marketplace>".
-      The matching entry's installPath is then read for author info from
-      <installPath>/.claude-plugin/plugin.json (supports both string and
-      {name: ...} object forms of the author field).
+      The matching entry's installPath is then read for author info.
+    - Falls back to ~/.copilot/installed-plugins/<marketplace>/<plugin>/
+      (override base with COPILOT_HOME). Direct installs land under
+      marketplace="_direct".
+    - The plugin manifest is searched at .claude-plugin/plugin.json,
+      .plugin/plugin.json, plugin.json, and .github/plugin/plugin.json
+      (covering every layout Claude Code and Copilot CLI accept).
+      Supports both string and {name: ...} object forms of the author field.
     - Non-namespaced names default to marketplace="user", author="".
     - Lookup failure -> marketplace="unknown", author="".
 
@@ -124,10 +132,13 @@ def extract_tool_from_payload(payload: object) -> Optional[str]:
     if not isinstance(payload, dict):
         return None
 
-    tool_name = payload.get("tool_name")
+    # Claude Code, VS Code Copilot Chat, and Copilot CLI's VS-Code-compat alias
+    # all send {"tool_name": "...", "tool_input": {...}}. Copilot CLI's native
+    # preToolUse event sends {"toolName": "...", "toolArgs": {...}}. Accept both.
+    tool_name = payload.get("tool_name") or payload.get("toolName")
     if isinstance(tool_name, str) and tool_name:
         if tool_name == "Skill":
-            tool_input = payload.get("tool_input") or {}
+            tool_input = payload.get("tool_input") or payload.get("toolArgs") or {}
             if isinstance(tool_input, dict):
                 value = tool_input.get("skill") or tool_input.get("name")
                 if isinstance(value, str) and value:
@@ -189,22 +200,87 @@ def resolve_user() -> str:
     return "unknown"
 
 
+PLUGIN_MANIFEST_CANDIDATES = (
+    ".claude-plugin/plugin.json",
+    ".plugin/plugin.json",
+    "plugin.json",
+    ".github/plugin/plugin.json",
+)
+
+
 def _read_plugin_author(install_path: str) -> str:
-    try:
-        manifest = Path(install_path) / ".claude-plugin" / "plugin.json"
-        data = json.loads(manifest.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    base = Path(install_path)
+    for rel in PLUGIN_MANIFEST_CANDIDATES:
+        try:
+            data = json.loads((base / rel).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        author = data.get("author")
+        if isinstance(author, str):
+            return author.strip()
+        if isinstance(author, dict):
+            name = author.get("name")
+            if isinstance(name, str):
+                return name.strip()
         return ""
-    if not isinstance(data, dict):
-        return ""
-    author = data.get("author")
-    if isinstance(author, str):
-        return author.strip()
-    if isinstance(author, dict):
-        name = author.get("name")
-        if isinstance(name, str):
-            return name.strip()
     return ""
+
+
+def _lookup_in_claude_index(plugin: str):
+    """Return (marketplace, install_path) from Claude's installed_plugins.json,
+    or (None, '') if the plugin isn't listed there."""
+    config_dir = os.environ.get("CLAUDE_CONFIG_DIR", "").strip()
+    base_dir = Path(config_dir) if config_dir else Path.home() / ".claude"
+    installed = base_dir / "plugins" / "installed_plugins.json"
+
+    try:
+        data = json.loads(installed.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return (None, "")
+
+    plugins = data.get("plugins") if isinstance(data, dict) else None
+    if not isinstance(plugins, dict):
+        return (None, "")
+
+    prefix = plugin + "@"
+    for key, entries in plugins.items():
+        if not (isinstance(key, str) and key.startswith(prefix)):
+            continue
+        marketplace = key[len(prefix):]
+        install_path = ""
+        if isinstance(entries, list):
+            for entry in entries:
+                if isinstance(entry, dict):
+                    ip = entry.get("installPath")
+                    if isinstance(ip, str) and ip:
+                        install_path = ip
+                        break
+        return (marketplace, install_path)
+    return (None, "")
+
+
+def _lookup_in_copilot_cli(plugin: str):
+    """Walk ~/.copilot/installed-plugins/<marketplace>/<plugin>/ for a match.
+    Returns (marketplace, install_path) or (None, '')."""
+    home = os.environ.get("COPILOT_HOME", "").strip()
+    base_dir = Path(home) if home else Path.home() / ".copilot"
+    root = base_dir / "installed-plugins"
+    if not root.is_dir():
+        return (None, "")
+    try:
+        marketplaces = sorted(p for p in root.iterdir() if p.is_dir())
+    except OSError:
+        return (None, "")
+    for mp_dir in marketplaces:
+        candidate = mp_dir / plugin
+        try:
+            if candidate.is_dir():
+                return (mp_dir.name, str(candidate))
+        except OSError:
+            continue
+    return (None, "")
 
 
 def resolve_plugin_info(tool_name: str) -> tuple:
@@ -217,34 +293,11 @@ def resolve_plugin_info(tool_name: str) -> tuple:
     if not plugin:
         return (override or "user", "")
 
-    config_dir = os.environ.get("CLAUDE_CONFIG_DIR", "").strip()
-    base_dir = Path(config_dir) if config_dir else Path.home() / ".claude"
-    installed = base_dir / "plugins" / "installed_plugins.json"
-
-    try:
-        data = json.loads(installed.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    marketplace, install_path = _lookup_in_claude_index(plugin)
+    if marketplace is None:
+        marketplace, install_path = _lookup_in_copilot_cli(plugin)
+    if marketplace is None:
         return (override or "unknown", "")
-
-    plugins = data.get("plugins") if isinstance(data, dict) else None
-    if not isinstance(plugins, dict):
-        return (override or "unknown", "")
-
-    prefix = plugin + "@"
-    marketplace = "unknown"
-    install_path = ""
-    for key, entries in plugins.items():
-        if not (isinstance(key, str) and key.startswith(prefix)):
-            continue
-        marketplace = key[len(prefix):]
-        if isinstance(entries, list):
-            for entry in entries:
-                if isinstance(entry, dict):
-                    ip = entry.get("installPath")
-                    if isinstance(ip, str) and ip:
-                        install_path = ip
-                        break
-        break
 
     author = _read_plugin_author(install_path) if install_path else ""
     return (override or marketplace, author)
